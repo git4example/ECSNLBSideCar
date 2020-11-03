@@ -55,12 +55,16 @@ class sideCarApp:
 
         # Attempt to find out service details
         try:
+            logging.debug('Attempting to Describe Task in order to find out Task Group for Service Information')
             r = self.client_ecs.describe_tasks(cluster=self.cluster, tasks=[self.task_arn])
             task_group = r['tasks'][0]['group']
             if not task_group.startswith('service:'):
-                self.error(Errors.CONTEXT, "Task is not in a service", fatal=True)
+                self.error(Errors.CONTEXT, "Task is not in a service, task group: %s" % r['tasks'][0]['group'],
+                           fatal=True)
             self.service_name = task_group.split(':', 1)[1]
 
+            logging.debug('Attempting to Describe Service %s in order to get TargetGroupArn information'
+                          % self.service_name)
             r = self.client_ecs.describe_services(cluster=self.cluster, services=[self.service_name])
             self.service = r['services'][0]['serviceArn']
             self.load_balancers = r['services'][0]['loadBalancers']
@@ -86,6 +90,7 @@ class sideCarApp:
 
         logging.info('Found %d Load Balancers attached' % count)
 
+        # Important: run with detach_process=False as running inside a container
         self.context = daemon.DaemonContext(
             detach_process=False,
             stdout=sys.stdout,
@@ -125,7 +130,7 @@ class sideCarApp:
                             self.drain()
 
     def drain(self):
-        # Wait 120 seconds for NLB
+        # Wait 120 seconds for NLB workflow timeout
         time.sleep(120)
         # If task is marked as essential this should send a SIGTERM to compliment task.
         self.shutdown()
