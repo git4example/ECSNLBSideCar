@@ -22,6 +22,13 @@ class Errors(Enum):
 
 class sideCarApp:
     def __init__(self):
+        # Grab Deregistration Wait Time from Environment Variables
+        if not (deregistration_wait := os.getenv('DEREGISTRATION_WAIT', 120)).isnumeric():
+            logging.warning('DEREGISTRATION_WAIT was not a numeric value: %s' % deregistration_wait)
+            deregistration_wait = 120
+        self.deregistration_wait = int(deregistration_wait)
+        logging.info('Deregistration wait configured too %i seconds' % self.deregistration_wait)
+
         # Validate Required Environment Variable and get Metadata
         if (ECS_CONTAINER_METADATA_URI_V4 := os.getenv('ECS_CONTAINER_METADATA_URI_V4')) is None:
             self.error(Errors.METADATA, "Environment Variable ECS_CONTAINER_METADATA_URI_V4 not set", fatal=True)
@@ -125,13 +132,14 @@ class sideCarApp:
                     if 'targetGroupArn' in lb:
                         r = self.check_health(lb['targetGroupArn'], self.network_addr, lb['containerPort'])
                         if r['State'] == 'draining':
-                            logging.warning('Determined that %s target %s is in state %s, exiting after 120 seconds' %
-                                            (lb['targetGroupArn'], self.network_addr, r['State']))
+                            logging.info('Determined that %s target %s is in state %s, exiting after %i seconds' %
+                                         (lb['targetGroupArn'], self.network_addr, r['State'],
+                                          self.deregistration_wait))
                             self.drain()
 
     def drain(self):
-        # Wait 120 seconds for NLB workflow timeout
-        time.sleep(120)
+        # Wait DEREGISTRATION seconds for NLB workflow timeout
+        time.sleep(self.deregistration_wait)
         # If task is marked as essential this should send a SIGTERM to compliment task.
         self.shutdown()
 
@@ -152,8 +160,8 @@ class sideCarApp:
             logging.fatal("Previous error was a fatal error, attempting to exit process cleanly")
             self.shutdown(clean=False)
 
-    @staticmethod
-    def shutdown(clean=True):
+    def shutdown(self, clean=True):
+        logging.debug('Closing out task %s' % self.task_arn)
         if not clean:
             logging.error('Detected unclean exit, exit(1)')
             sys.exit(1)

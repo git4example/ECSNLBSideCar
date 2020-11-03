@@ -4,7 +4,9 @@ This repository contains a Dockerfile and some Python Code that will create a sm
 
 Currently ECS will keep the task open for the entire deregistration delay, however there is not a way to "prematurely" stop the task allowing for a gracefully handing over any active connections.
 
-This sidecar monitors the NLB Target Group Target Health of the primary process in order to determine if the target is in the "draining" state. It will then wait the recommended 2 minutes before exiting. If the sidecar container is marked as "essential" in the ECS task definition this will result in a `SIGTERM` signal being sent to all other containers in the task.
+This sidecar monitors the NLB Target Group Target Health of the primary process in order to determine if the target is in the "draining" state. It will then wait the recommended 2 minutes before exiting (by default). If the sidecar container is marked as "essential" in the ECS task definition this will result in a `SIGTERM` signal being sent to all other containers in the task.
+
+If you find that default is insufficient please configure the wait time with the `DEREGISTRATION_WAIT` environment variable.
 
 Depending on how the primary application is configured, this allows the primary application to gracefully exit by using the `SIGTERM` signal and `stopTimeout` property. A graceful exit _should_ consist of:
 
@@ -59,6 +61,12 @@ Here is an example Task Definition with this in use:
       "name": "sidecar",
       "image": "sidecar-image",
       "essential": true,
+      "environment" : [
+        {
+          "name": "DEREGISTRATION_WAIT",
+          "value": "120"
+        }     
+      ],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
