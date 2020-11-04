@@ -13,7 +13,7 @@ Depending on how the primary application is configured, this allows the primary 
 - Completing the active transaction
 - Sending a TCP RST or TCP FIN signal to close out the connection.
 
-This sidecar requires the following minial permissions added to the Task Role to function (further permission reduction may be possible but has not been tested):
+This sidecar requires the following minimal permissions added to the Task Role to function (further permission reduction may be possible but has not been tested):
 
 ```json
 {

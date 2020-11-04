@@ -27,7 +27,7 @@ class sideCarApp:
             logging.warning('DEREGISTRATION_WAIT was not a numeric value: %s' % deregistration_wait)
             deregistration_wait = 120
         self.deregistration_wait = int(deregistration_wait)
-        logging.info('Deregistration wait configured too %i seconds' % self.deregistration_wait)
+        logging.info('Deregistration wait configured to %i seconds' % self.deregistration_wait)
 
         # Validate Required Environment Variable and get Metadata
         if (ECS_CONTAINER_METADATA_URI_V4 := os.getenv('ECS_CONTAINER_METADATA_URI_V4')) is None:
