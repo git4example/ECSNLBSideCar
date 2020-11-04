@@ -1,10 +1,10 @@
-# AWS Network Load Balancer Sidecar Container
+# AWS Network Load Balancer Sidecar Container for ECS
 
 This repository contains a Dockerfile and some Python Code that will create a small Python based daemon that will help ensure that your application properly handles an AWS Network Load Balancer in ECS.
 
 Currently ECS will keep the task open for the entire deregistration delay, however there is not a way to "prematurely" stop the task allowing for a gracefully handing over any active connections.
 
-This sidecar monitors the NLB Target Group Target Health of the primary process in order to determine if the target is in the "draining" state. It will then wait the recommended 2 minutes before exiting (by default). If the sidecar container is marked as "essential" in the ECS task definition this will result in a `SIGTERM` signal being sent to all other containers in the task.
+This sidecar monitors the NLB Target Group Target Health of the primary process in order to determine if the target is in the "draining" state. It will then wait the recommended 120 seconds before exiting (by default). If the sidecar container is marked as "essential" in the ECS task definition this will result in a `SIGTERM` signal being sent to all other containers in the task.
 
 If you find that default is insufficient please configure the wait time with the `DEREGISTRATION_WAIT` environment variable.
 
@@ -33,7 +33,7 @@ This sidecar requires the following minimal permissions added to the Task Role t
 }
 ```
 
-Here is an example Task Definition with this in use:
+Here is an example Task Definition with this in use compatible with Fargate:
 
 ```json
 {
@@ -87,10 +87,9 @@ Here is an example Task Definition with this in use:
   "cpu": "512",
   "memory": "1024"
 }
-
 ```
 
-Note also that after initialisation (one `DescribeServices` and one `DescribeTasks`) startup each instance of this sidecar will perform a `DescribeTargetHealth` API call every 30 seconds. It is not recommended to run too many of these in parallel as the code has limited exponential backoff and retry logic.
+Note also that after initialisation (one `DescribeServices` and one `DescribeTasks`) startup each instance of this sidecar will perform a `DescribeTargetHealth` API call every 30 seconds. It is not recommended to run too many of these in parallel as the code has limited exponential backoff and retry logic. Failure for the API call to be called currently will result in premature termination of the sidecar.
 
 This sidecar currently also relies on the following assumptions:
 
