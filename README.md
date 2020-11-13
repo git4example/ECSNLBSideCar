@@ -15,7 +15,7 @@ Depending on how the primary application is configured, this allows the primary 
 
 If your application is configured to achieve this graceful exit condition on a signal other than `SIGTERM` it is recommend you build your image with a modified [`STOPSIGNAL`](https://docs.docker.com/engine/reference/builder/#stopsignal).
 
-For example the `library/nginx` image uses `SIGTERM` by default but a `SIGQUIT` signal can be used provided that you are not using UNIX sockets or a version prior to 1.19.1 (as per [defect #753](https://trac.nginx.org/nginx/ticket/753) which was merged into [1.19.1 of ngnix](https://trac.nginx.org/nginx/browser/nginx/src/os/unix/ngx_process_cycle.c?rev=062920e2f3bf871ef7a3d8496edec1b3065faf80)) which will "gracefully exit" existing connections. Therefore, you may want to build your own nginx with a modified `STOPSIGNAL` or wait for [docker-nginx/pull/457](https://github.com/nginxinc/docker-nginx/pull/457) to be merged and actioned:
+For example the `library/nginx` image uses `SIGTERM` by default but a `SIGQUIT` signal can be used provided that you are not using UNIX sockets or a version prior to 1.19.1 (as per [defect #753](https://trac.nginx.org/nginx/ticket/753) which was merged into [1.19.1 of ngnix](https://trac.nginx.org/nginx/browser/nginx/src/os/unix/ngx_process_cycle.c?rev=062920e2f3bf871ef7a3d8496edec1b3065faf80)) which will "gracefully exit" existing connections. Therefore, you may want to build your own nginx with a modified `STOPSIGNAL` or wait for [docker-nginx/pull/457](https://github.com/nginxinc/docker-nginx/pull/457) to be merged and actioned as ECS does not support runtime modification of the stop signal:
 
 ```
 FROM ngnix:1.19.4
