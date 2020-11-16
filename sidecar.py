@@ -107,7 +107,7 @@ class sideCarApp:
             })
 
     @AWSRetry.backoff(tries=10, delay=2, backoff=1.5)
-    def check_health(self, target_group_arn, network_addr, port=80):
+    def check_health(self, target_group_arn: str, network_addr: str, port: int = 80):
         logging.debug('Attempting DescribeTargetHealth with %s ; %s ; %s' % (target_group_arn, network_addr, port))
         try:
             r = self.client_elb.describe_target_health(TargetGroupArn=target_group_arn, Targets=[
@@ -143,7 +143,7 @@ class sideCarApp:
         # If task is marked as essential this should send a SIGTERM to compliment task.
         self.shutdown()
 
-    def error(self, error, message, fatal=False):
+    def error(self, error: Errors, message: str, fatal: bool = False):
         if error == Errors.METADATA:
             logging.error('Error import ECS Metadata: %s' % message)
 
@@ -160,7 +160,7 @@ class sideCarApp:
             logging.fatal("Previous error was a fatal error, attempting to exit process cleanly")
             self.shutdown(clean=False)
 
-    def shutdown(self, clean=True):
+    def shutdown(self, clean: bool = True):
         logging.debug('Closing out task %s' % self.task_arn)
         if not clean:
             logging.error('Detected unclean exit, exit(1)')
