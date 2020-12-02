@@ -81,7 +81,7 @@ class sideCarApp:
 
     def __init__(self):
         # Grab Deregistration Wait Time from Environment Variables
-        if not (deregistration_wait := os.getenv('DEREGISTRATION_WAIT', 120)).isnumeric():
+        if not (deregistration_wait := os.getenv('DEREGISTRATION_WAIT', '120')).isnumeric():
             logging.warning('DEREGISTRATION_WAIT was not a numeric value: %s' % deregistration_wait)
             deregistration_wait = 120
         self.deregistration_wait = int(deregistration_wait)
