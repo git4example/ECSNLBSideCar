@@ -1,3 +1,23 @@
+"""
+AWS Network Load Balancer Sidecar Container for ECS
+
+Copyright 2020 Taylor Bertie
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+"""
+
 import time
 import os
 import sys
@@ -14,6 +34,9 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
 
 class Errors(Enum):
+    """
+    Enum representing the different error types that may be encountered
+    """
     UNKNOWN = 0
     METADATA = 1
     CONTEXT = 2
@@ -21,6 +44,41 @@ class Errors(Enum):
 
 
 class sideCarApp:
+    """
+    Class containing the sidecar application
+
+    ...
+
+    Attributes
+    ----------
+    deregistration_wait : int
+        how long to wait after the NLB is in draining state before exiting
+    metadata : dict
+        metadata extracted from the ECS container metadata V4 URI
+    network_type : str
+        network type the ECS task is running on (currently only awsvpc is supported)
+    network_addr : str
+        IP address of the network interface
+    network_mac : str
+        MAC address of the network interface
+    task_arn : str
+        ARN of the ECS Task
+    cluster : str
+        Cluster the ECS Task is a member of
+    client_ecs : boto3.client
+        ECS Client to interact with ECS API
+    client_elb : boto3.client
+        ELBv2 Client to interact with the ELBv2 API
+    service_name : str
+        Service Name the ECS Task is a member of
+    service : str
+        ARN of the ECS Service the ECS Task is a member of
+    load_balancers : dict
+        Dictionary containing the attached Load Balancers to the ECS Service
+    context : daemon.DaemonContext
+        Context to setup the daemon process.
+    """
+
     def __init__(self):
         # Grab Deregistration Wait Time from Environment Variables
         if not (deregistration_wait := os.getenv('DEREGISTRATION_WAIT', 120)).isnumeric():
@@ -108,6 +166,14 @@ class sideCarApp:
 
     @AWSRetry.backoff(tries=10, delay=2, backoff=1.5)
     def check_health(self, target_group_arn: str, network_addr: str, port: int = 80):
+        """
+         Checks the health of a given target IP and port in a Target Group
+
+         :param target_group_arn: Target Group ARN to query
+         :param network_addr: IP address of the target to query
+         :param port: Port of the target to query
+         :return: Health status of the Target
+         """
         logging.debug('Attempting DescribeTargetHealth with %s ; %s ; %s' % (target_group_arn, network_addr, port))
         try:
             r = self.client_elb.describe_target_health(TargetGroupArn=target_group_arn, Targets=[
@@ -121,6 +187,10 @@ class sideCarApp:
         return r['TargetHealthDescriptions'][0]['TargetHealth']
 
     def run(self):
+        """
+        Runs the daemon process which checks the health of the targets for this task every 30 seconds and calls drain()
+        when a target goes into 'draining"
+        """
         logging.info('Initialization Complete, starting daemon')
         with self.context:
             logging.info('Daemon started')
@@ -138,12 +208,22 @@ class sideCarApp:
                             self.drain()
 
     def drain(self):
+        """
+        Waits the deregistration_wait time (in seconds) and then calls shutdown()
+        """
         # Wait DEREGISTRATION seconds for NLB workflow timeout
         time.sleep(self.deregistration_wait)
         # If task is marked as essential this should send a SIGTERM to compliment task.
         self.shutdown()
 
     def error(self, error: Errors, message: str, fatal: bool = False):
+        """
+        Prints an error message to the log.
+
+        :param error: Error type
+        :param message: Message to be printed
+        :param fatal: Determines if function should call shutdown after this error
+        """
         if error == Errors.METADATA:
             logging.error('Error import ECS Metadata: %s' % message)
 
@@ -161,6 +241,11 @@ class sideCarApp:
             self.shutdown(clean=False)
 
     def shutdown(self, clean: bool = True):
+        """
+        Exits the application/daemon
+
+        :param clean: Determines the exit code.
+        """
         logging.debug('Closing out task %s' % self.task_arn)
         if not clean:
             logging.error('Detected unclean exit, exit(1)')
