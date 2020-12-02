@@ -63,6 +63,8 @@ class sideCarApp:
         MAC address of the network interface
     task_arn : str
         ARN of the ECS Task
+    region : str
+        Region of the Task
     cluster : str
         Cluster the ECS Task is a member of
     client_ecs : boto3.client
@@ -106,6 +108,8 @@ class sideCarApp:
             self.network_addr = self.metadata['Containers'][0]['Networks'][0]['IPv4Addresses'][0]
             self.network_mac = self.metadata['Containers'][0]['Networks'][0]['MACAddress']
             self.task_arn = self.metadata['TaskARN']
+            # ARN is "arn:partition:service:region", so we need 4th element, i.e. 3 zero-indexed
+            self.region = self.task_arn.split(':')[3]
             self.cluster = self.metadata['Cluster']
 
         except Exception as e:
@@ -115,8 +119,8 @@ class sideCarApp:
         logging.info('Determined TaskARN to be %s' % self.task_arn)
 
         # Setup Needed Clients
-        self.client_ecs = boto3.client('ecs')
-        self.client_elb = boto3.client('elbv2')
+        self.client_ecs = boto3.client('ecs', region_name=self.region)
+        self.client_elb = boto3.client('elbv2', region_name=self.region)
 
         # Attempt to find out service details
         try:
